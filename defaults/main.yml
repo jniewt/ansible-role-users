@@ -1,0 +1,5 @@
+---
+# defaults file for users
+users_ssh_permit_root_login: "no"
+users_ssh_password_authentication: "no"
+users_obsolete: []

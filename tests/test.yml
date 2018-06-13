@@ -1,0 +1,61 @@
+---
+- name: Install requirements
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Install requirements.yml
+      local_action: command ansible-galaxy install -r requirements.yml --ignore-errors
+
+- name: Bring up docker container
+  hosts: localhost
+  gather_facts: false
+  vars:
+    inventory:
+      - name: debian-testing
+        image: "jniewt/docker-debian-testing-ansible"
+      - name: debian9
+        image: "geerlingguy/docker-debian9-ansible"
+      - name: ubuntu18
+        image: "geerlingguy/docker-ubuntu1804-ansible"
+      - name: ubuntu16
+        image: thomasjpfan/ubuntu-python-systemd:16.04-py2
+      - name: ubuntu14
+        image: "pramttl/ubuntu-python"
+  tasks:
+  - include_role:
+      name: chrismeyersfsu.provision_docker
+    vars:
+      provision_docker_inventory: "{{ inventory }}"
+
+- name: Run Tests
+  hosts: docker_containers
+  remote_user: root
+  vars:
+    ansible_unit_test: True
+    users:
+      - { username: user1, key: [ "tests/files/placeholder.pub" ] }
+      - username: user2
+        key: [ "tests/files/placeholder.pub" ]
+        passwd: "$6$8xUk42xyW.tpdk3o$PN56lzHM4ll7pIKuMKAtfRxbU7r3yZN1TrDI0EuU/wUTz9srMds1g8PN1NcCkJIVtabw6YF3rgtU9g7camrcP1"
+  tasks:
+  - name: Install ssh
+    apt:
+      update_cache: yes
+      name: ssh
+  - name: Create ssh run dir
+    file:
+      path: /run/sshd
+      state: directory
+  - import_role:
+      name: users
+  - name: Run ssh
+    command: /usr/sbin/sshd
+  - debug:
+      var: hostvars['debian9']
+      verbosity: 2
+  # - name: Test ssh connectivity
+  #   local_action: "command ssh -q -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3 -i files/placeholder {{ item.username }}@{{ ansible_default_ipv4.address }} 'echo ok'"
+  #   register: test_ssh
+  #   changed_when: false
+  #   with_items: "{{ users }}"
+  #   ignore_errors: yes

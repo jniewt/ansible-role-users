@@ -1,0 +1,68 @@
+---
+- name: Check if 'users' is defined
+  fail:
+    msg: "Please define variable 'users'"
+  when: users is undefined
+
+# create all users with home dir and no initial password
+- name: Create users
+  user:
+    name: "{{ item.username }}"
+    state: present
+    # don't replace groups, append them
+    append: yes
+    password: "{{ item.passwd | default('') }}"
+    groups:
+      - sudo
+    shell: "/bin/bash"
+  with_items: "{{ users }}"
+  # make ansible output a nicer label for every loop item when running the role
+  loop_control:
+    label: "{{ item.username }}"
+  register: result
+
+- debug:
+    var: result
+    verbosity: 2
+
+# if user has been created set password to expired if no password given
+- name: Force each newly created user to set a new password on first login if no passwd given
+  command: chage -d 0 "{{ item.item.username }}"
+  with_items: "{{ result.results }}"
+  when: item.changed and item.item.passwd is undefined
+  # make ansible output a nicer label for every loop item when running the role
+  loop_control:
+    label: "{{ item.item.username }}"
+
+# for each created user install authorized keys
+- name: Install authorized keys
+  authorized_key:
+    user: "{{ item.0.username }}"
+    state: present
+    key: "{{ lookup('file', item.1) }}"
+  with_subelements:
+    - "{{ users }}"
+    - key
+  # make ansible output a nicer label for every loop item when running the role
+  loop_control:
+    label: "{{ item.0.username }}"
+
+# allow the users to only login with ssh keys, forbid root login
+- name: Update SSH configuration to be more secure.
+  lineinfile:
+    dest: "{{ users_ssh_config_path }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - regexp: "^PasswordAuthentication"
+      line: "PasswordAuthentication {{ users_ssh_password_authentication }}"
+    - regexp: "^PermitRootLogin"
+      line: "PermitRootLogin {{ users_ssh_permit_root_login }}"
+
+# remove obsolete users
+- name: Remove obsolete users
+  user:
+    name: "{{ item.username }}"
+    state: absent
+  with_items: "{{ users_obsolete }}"
