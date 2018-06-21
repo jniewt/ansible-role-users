@@ -56,9 +56,9 @@
     state: present
   with_items:
     - regexp: "^PasswordAuthentication"
-      line: "PasswordAuthentication {{ users_ssh_password_authentication }}"
+      line: "PasswordAuthentication {{ users_ssh_password_authentication | bool | ternary('yes', 'no') }}"
     - regexp: "^PermitRootLogin"
-      line: "PermitRootLogin {{ users_ssh_permit_root_login }}"
+      line: "PermitRootLogin {{ users_ssh_permit_root_login | bool | ternary('yes', 'no') }}"
 
 # remove obsolete users
 - name: Remove obsolete users
