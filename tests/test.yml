@@ -11,8 +11,6 @@
   gather_facts: false
   vars:
     inventory:
-      - name: debian-testing
-        image: "jniewt/docker-debian-testing-ansible"
       - name: debian9
         image: "geerlingguy/docker-debian9-ansible"
       - name: ubuntu18
