@@ -12,6 +12,7 @@
     # don't replace groups, append them
     append: yes
     password: "{{ item.passwd | default('') }}"
+    update_password: on_create
     groups:
       - sudo
     shell: "/bin/bash"
@@ -26,10 +27,10 @@
     verbosity: 2
 
 # if user has been created set password to expired if no password given
-- name: Force each newly created user to set a new password on first login if no passwd given
+- name: Force each newly created user to change the password on first login
   command: chage -d 0 "{{ item.item.username }}"
   with_items: "{{ result.results }}"
-  when: item.changed and item.item.passwd is undefined
+  when: item.changed
   # make ansible output a nicer label for every loop item when running the role
   loop_control:
     label: "{{ item.item.username }}"
